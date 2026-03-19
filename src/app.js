@@ -44,13 +44,26 @@ app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(cookieParser());
 app.use(compression());
+
+// 🔥 LE PATCH DE COMPATIBILITÉ EXPRESS 5 EST ICI 🔥
+// Il doit absolument être placé AVANT mongoSanitize()
+app.use((req, res, next) => {
+  Object.defineProperty(req, 'query', {
+    value: { ...req.query },
+    writable: true,
+    configurable: true,
+    enumerable: true,
+  });
+  next();
+});
+
+// Maintenant mongoSanitize peut s'exécuter sans crasher le serveur
 app.use(mongoSanitize());
 
 app.use((req, res, next) => {
   if (req.body && typeof req.body === 'object') {
     Object.keys(req.body).forEach((key) => {
       if (typeof req.body[key] === 'string') {
-        // Crée une nouvelle référence de l'objet pour éviter l'erreur de "getter"
         req.body[key] = xss(req.body[key]); 
       }
     });
