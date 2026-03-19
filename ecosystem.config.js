@@ -3,7 +3,7 @@ module.exports = {
     {
       name: 'studydrive-api',
       script: './src/server.js', // Chemin vers le dossier src
-      instances: 'max',
+      instances: 1,
       exec_mode: 'cluster',
       env_production: {
         NODE_ENV: 'production',

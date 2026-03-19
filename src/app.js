@@ -47,12 +47,13 @@ app.use(compression());
 app.use(mongoSanitize());
 
 app.use((req, res, next) => {
-  if (req.body) {
-    for (let key in req.body) {
+  if (req.body && typeof req.body === 'object') {
+    Object.keys(req.body).forEach((key) => {
       if (typeof req.body[key] === 'string') {
-        req.body[key] = xss(req.body[key]);
+        // Crée une nouvelle référence de l'objet pour éviter l'erreur de "getter"
+        req.body[key] = xss(req.body[key]); 
       }
-    }
+    });
   }
   next();
 });
