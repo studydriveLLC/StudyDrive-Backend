@@ -1,5 +1,7 @@
 const User = require('../models/User');
 const AppError = require('../utils/AppError');
+// Importe bcrypt ou bcryptjs selon ce que tu as installé dans ton package.json backend
+const bcrypt = require('bcrypt'); 
 
 const registerUser = async (userData) => {
   // Verification de l'existence prealable (email, pseudo ou telephone)
@@ -26,22 +28,29 @@ const registerUser = async (userData) => {
 };
 
 const loginUser = async (identifier, password) => {
-  // Recherche par email, pseudo ou telephone
-  // On doit explicitement demander le mot de passe car il est en select: false
+  // 1. Recherche : On inclut le mot de passe ET on exclut les comptes supprimes
   const user = await User.findOne({
     $or: [
       { email: identifier.toLowerCase() },
       { pseudo: identifier },
       { phone: identifier },
     ],
+    isDeleted: { $ne: true } // 🔒 SECURITE : Bloque les comptes "soft-deleted"
   }).select('+password');
 
+  // Si on ne trouve personne (ou si le compte est supprime), on rejette
   if (!user) {
-    throw new AppError('Identifiants incorrects.', 401);
+    throw new AppError('Identifiants incorrects ou compte introuvable.', 401);
   }
 
-  // Verification du mot de passe
-  const isPasswordCorrect = await user.comparePassword(password, user.password);
+  // 2. Verification du mot de passe (Crash Proof 🛡️)
+  // On utilise bcrypt directement pour eviter les erreurs de methodes Mongoose manquantes
+  let isPasswordCorrect = false;
+  
+  if (user.password) {
+    // Si tu utilises bcrypt au lieu de bcryptjs, change juste l'import en haut
+    isPasswordCorrect = await bcrypt.compare(password, user.password);
+  }
 
   if (!isPasswordCorrect) {
     throw new AppError('Identifiants incorrects.', 401);
