@@ -8,9 +8,13 @@ const handleCastErrorDB = (err) => {
 };
 
 const handleDuplicateFieldsDB = (err) => {
-  const value = err.errmsg ? err.errmsg.match(/(["'])(\\?.)*?\1/)[0] : 'Valeur';
+  // Mongoose 6+ utilise souvent err.message au lieu de err.errmsg
+  const sourceString = err.errmsg || err.message;
+  const match = sourceString.match(/(["'])(\\?.)*?\1/);
+  const value = match ? match[0] : 'Valeur';
+  
   const message = `Valeur dupliquée: ${value}. Veuillez utiliser une autre valeur.`;
-  return new AppError(message, 400);
+  return new AppError(message, 400); // Se transforme en erreur 400 proprement
 };
 
 const handleValidationErrorDB = (err) => {
@@ -32,15 +36,13 @@ const sendErrorDev = (err, res) => {
 };
 
 const sendErrorProd = (err, res) => {
-  // Erreurs opérationnelles prévues : on envoie le message au client
   if (err.isOperational) {
     res.status(err.statusCode).json({
       status: err.status,
       message: err.message
     });
   } else {
-    // Erreur de programmation ou inconnue : on cache les détails au client
-    logger.error('ERREUR NON OPÉRATIONNELLE 💥', err);
+    logger.error('ERREUR NON OPÉRATIONNELLE', err);
     res.status(500).json({
       status: 'error',
       message: 'Une erreur interne est survenue.'
@@ -58,14 +60,13 @@ module.exports = (err, req, res, next) => {
     let error = { ...err };
     error.message = err.message;
     error.name = err.name;
+    error.code = err.code; // LIGNE MAGIQUE : Permet au filtre 11000 de fonctionner
     error.errmsg = err.errmsg;
 
-    // Interception des erreurs MongoDB spécifiques
     if (error.name === 'CastError') error = handleCastErrorDB(error);
-    if (error.code === 11000) error = handleDuplicateFieldsDB(error);
+    if (error.code === 11000) error = handleDuplicateFieldsDB(error); // Maintenant ça marche !
     if (error.name === 'ValidationError') error = handleValidationErrorDB(error);
     
-    // Interception des erreurs JWT
     if (error.name === 'JsonWebTokenError') error = handleJWTError();
     if (error.name === 'TokenExpiredError') error = handleJWTExpiredError();
 
