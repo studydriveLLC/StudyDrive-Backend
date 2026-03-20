@@ -1,15 +1,9 @@
 const multer = require('multer');
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
-const cloudinary = require('../config/cloudinary');
 const AppError = require('../utils/AppError');
 
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'studydrive_resources',
-    resource_type: 'auto',
-  },
-});
+// Utilisation de la mémoire RAM pour stocker temporairement le fichier
+// Cela empêche le serveur de se bloquer si le service externe ne répond pas
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   const allowedMimeTypes = [

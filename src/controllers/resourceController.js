@@ -1,32 +1,22 @@
 const resourceService = require('../services/resourceService');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/AppError');
+const cloudinary = require('../config/cloudinary');
+const { Readable } = require('stream');
 
 exports.getResources = catchAsync(async (req, res) => {
   const data = await resourceService.getAllResources(req.query);
-  res.status(200).json({
-    status: 'success',
-    data
-  });
+  res.status(200).json({ status: 'success', data });
 });
 
 exports.getResource = catchAsync(async (req, res) => {
   const resource = await resourceService.getResourceById(req.params.id);
-  res.status(200).json({
-    status: 'success',
-    data: { resource }
-  });
+  res.status(200).json({ status: 'success', data: { resource } });
 });
 
 exports.logDownload = catchAsync(async (req, res) => {
   const resource = await resourceService.trackDownload(req.params.id);
-  res.status(200).json({
-    status: 'success',
-    data: { 
-      id: resource._id,
-      downloads: resource.downloads 
-    }
-  });
+  res.status(200).json({ status: 'success', data: { id: resource._id, downloads: resource.downloads } });
 });
 
 exports.uploadResource = catchAsync(async (req, res) => {
@@ -41,6 +31,27 @@ exports.uploadResource = catchAsync(async (req, res) => {
   if (req.file.mimetype === 'application/msword') format = 'doc';
   if (req.file.mimetype.includes('spreadsheetml.sheet')) format = 'xlsx';
 
+  const uploadToCloudinary = () => {
+    return new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { 
+          folder: 'studydrive_resources', 
+          resource_type: 'auto' 
+        },
+        (error, result) => {
+          if (error) {
+            console.error('Erreur Cloudinary:', error);
+            return reject(new AppError('Echec de l\'envoi vers le serveur de stockage. Vérifiez vos clés Cloudinary.', 500));
+          }
+          resolve(result);
+        }
+      );
+      Readable.from(req.file.buffer).pipe(stream);
+    });
+  };
+
+  const cloudinaryResult = await uploadToCloudinary();
+
   const defaultDescription = `Document de ${req.body.category} pour le niveau ${req.body.level}.`;
 
   const resourceData = {
@@ -48,7 +59,7 @@ exports.uploadResource = catchAsync(async (req, res) => {
     description: req.body.description || defaultDescription,
     category: req.body.category,
     level: req.body.level,
-    fileUrl: req.file.path, 
+    fileUrl: cloudinaryResult.secure_url, 
     fileSize: req.file.size || 0, 
     format: format,
     uploadedBy: req.user._id 
