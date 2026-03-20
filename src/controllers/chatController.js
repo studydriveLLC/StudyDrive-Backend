@@ -36,7 +36,6 @@ const getConversationMessages = async (req, res, next) => {
 
     const messages = await chatService.getMessages(conversationId, req.user._id, page, limit);
 
-    // Marquer la conversation comme lue puisqu'on vient de charger les messages
     await chatService.markConversationAsRead(conversationId, req.user._id);
 
     res.status(200).json({
@@ -65,9 +64,25 @@ const postMessage = async (req, res, next) => {
   }
 };
 
+const removeMessage = async (req, res, next) => {
+  try {
+    const { conversationId, messageId } = req.params;
+    
+    await chatService.deleteMessage(req.user._id, conversationId, messageId);
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Message supprime avec succes.'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   startConversation,
   getMyConversations,
   getConversationMessages,
-  postMessage
+  postMessage,
+  removeMessage
 };

@@ -9,7 +9,7 @@ const notificationSchema = new mongoose.Schema({
   },
   sender: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User' // Peut être null si c'est une notification système (ex: Badge validé)
+    ref: 'User' 
   },
   type: {
     type: String,
@@ -17,11 +17,11 @@ const notificationSchema = new mongoose.Schema({
     required: true
   },
   referenceId: {
-    type: mongoose.Schema.Types.ObjectId, // ID du post, du commentaire ou de la conversation
+    type: mongoose.Schema.Types.ObjectId, 
     required: true
   },
   content: {
-    type: String, // ex: "Kevyamon a commenté votre publication."
+    type: String, 
     required: true
   },
   isRead: {
@@ -34,5 +34,8 @@ const notificationSchema = new mongoose.Schema({
 
 // Index pour lister rapidement les notifications non lues d'un utilisateur
 notificationSchema.index({ recipient: 1, isRead: 1, createdAt: -1 });
+
+// NOUVEAU : TTL Index - MongoDB nettoiera automatiquement les notifications après 15 jours
+notificationSchema.index({ createdAt: 1 }, { expireAfterSeconds: 1296000 });
 
 module.exports = mongoose.model('Notification', notificationSchema);

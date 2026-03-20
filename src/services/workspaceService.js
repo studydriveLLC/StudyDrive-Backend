@@ -2,12 +2,13 @@ const Document = require('../models/Document');
 const Resource = require('../models/Resource');
 const AppError = require('../utils/AppError');
 
+// --- Section MyWord ---
+
 const createDocument = async (authorId) => {
   return await Document.create({ author: authorId });
 };
 
 const autoSaveDocument = async (documentId, authorId, updateData) => {
-  // Utilisation de findOneAndUpdate pour une exécution en une seule requête DB
   const document = await Document.findOneAndUpdate(
     { _id: documentId, author: authorId },
     { 
@@ -20,19 +21,20 @@ const autoSaveDocument = async (documentId, authorId, updateData) => {
   ).lean();
 
   if (!document) {
-    throw new AppError('Document introuvable ou vous n\'en êtes pas l\'auteur.', 404);
+    throw new AppError('Document introuvable ou vous n\'en etes pas l\'auteur.', 404);
   }
 
   return document;
 };
 
 const getUserDocuments = async (authorId) => {
-  // lean() est crucial ici pour des performances maximales en lecture seule
   return await Document.find({ author: authorId })
     .sort({ updatedAt: -1 })
     .select('title status lastSavedAt updatedAt')
     .lean();
 };
+
+// --- Section Ressources ---
 
 const createResource = async (authorId, resourceData, fileData) => {
   if (!fileData) {
@@ -43,7 +45,7 @@ const createResource = async (authorId, resourceData, fileData) => {
     title: resourceData.title,
     description: resourceData.description,
     major: resourceData.major,
-    fileUrl: fileData.path, // URL fournie par Cloudinary
+    fileUrl: fileData.path, 
     fileType: fileData.mimetype,
     author: authorId,
   });
@@ -51,10 +53,61 @@ const createResource = async (authorId, resourceData, fileData) => {
   return resource;
 };
 
-const getResourcesByMajor = async (major, page = 1, limit = 10) => {
-  const skip = (page - 1) * limit;
+const updateResource = async (userId, resourceId, updateData, userRole) => {
+  const resource = await Resource.findById(resourceId);
+  
+  if (!resource) {
+    throw new AppError('Ressource introuvable.', 404);
+  }
 
-  const resources = await Resource.find(major ? { major } : {})
+  // Seul l'auteur ou l'administration peut modifier
+  if (resource.author.toString() !== userId.toString() && userRole !== 'superadmin' && userRole !== 'admin') {
+    throw new AppError('Vous n\'avez pas les droits pour modifier cette ressource.', 403);
+  }
+
+  const allowedFields = ['title', 'description', 'major'];
+  allowedFields.forEach(field => {
+    if (updateData[field] !== undefined) {
+      resource[field] = updateData[field];
+    }
+  });
+
+  await resource.save();
+  return resource;
+};
+
+const deleteResource = async (userId, resourceId, userRole) => {
+  const resource = await Resource.findById(resourceId);
+  
+  if (!resource) {
+    throw new AppError('Ressource introuvable.', 404);
+  }
+
+  // Seul l'auteur ou l'administration peut supprimer
+  if (resource.author.toString() !== userId.toString() && userRole !== 'superadmin' && userRole !== 'admin') {
+    throw new AppError('Vous n\'avez pas les droits pour supprimer cette ressource.', 403);
+  }
+
+  await Resource.findByIdAndDelete(resourceId);
+  return true;
+};
+
+const getResources = async (filters, page = 1, limit = 10) => {
+  const skip = (page - 1) * limit;
+  const query = {};
+
+  if (filters.major) {
+    query.major = filters.major;
+  }
+  
+  if (filters.search) {
+    query.$or = [
+      { title: { $regex: filters.search, $options: 'i' } },
+      { description: { $regex: filters.search, $options: 'i' } }
+    ];
+  }
+
+  const resources = await Resource.find(query)
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit)
@@ -64,7 +117,6 @@ const getResourcesByMajor = async (major, page = 1, limit = 10) => {
   return resources;
 };
 
-// Incrémente le compteur sans verrouiller le document pour les autres lectures
 const incrementDownload = async (resourceId) => {
   await Resource.findByIdAndUpdate(resourceId, { $inc: { 'stats.downloads': 1 } });
 };
@@ -74,6 +126,8 @@ module.exports = {
   autoSaveDocument,
   getUserDocuments,
   createResource,
-  getResourcesByMajor,
+  updateResource,
+  deleteResource,
+  getResources,
   incrementDownload,
 };

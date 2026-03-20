@@ -30,4 +30,7 @@ const certificationRequestSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// NOUVEAU : TTL Index intelligent. Démarre le compte à rebours de 30 jours UNIQUEMENT quand la demande a été traitée (processedAt).
+certificationRequestSchema.index({ processedAt: 1 }, { expireAfterSeconds: 2592000 });
+
 module.exports = mongoose.model('CertificationRequest', certificationRequestSchema);

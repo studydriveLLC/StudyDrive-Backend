@@ -4,7 +4,6 @@ const AppError = require('../utils/AppError');
 const socketConfig = require('../config/socket');
 
 const getOrCreateConversation = async (currentUserId, targetUserId) => {
-  // Cherche une conversation exacte entre ces deux utilisateurs
   let conversation = await Conversation.findOne({
     participants: { $all: [currentUserId, targetUserId], $size: 2 }
   }).populate('participants', 'firstName lastName pseudo');
@@ -17,7 +16,6 @@ const getOrCreateConversation = async (currentUserId, targetUserId) => {
         [targetUserId.toString()]: 0
       }
     });
-    // Populons les données du front-end pour la première création
     conversation = await conversation.populate('participants', 'firstName lastName pseudo');
   }
 
@@ -34,14 +32,13 @@ const getUserConversations = async (userId) => {
 const getMessages = async (conversationId, userId, page = 1, limit = 20) => {
   const skip = (page - 1) * limit;
 
-  // Sécurité: Vérifier que l'utilisateur fait bien partie de la conversation
   const conversation = await Conversation.findOne({ _id: conversationId, participants: userId }).lean();
   if (!conversation) {
-    throw new AppError('Accès refusé à cette conversation.', 403);
+    throw new AppError('Acces refuse a cette conversation.', 403);
   }
 
   return await Message.find({ conversationId })
-    .sort({ createdAt: -1 }) // Les plus récents en premier
+    .sort({ createdAt: -1 }) 
     .skip(skip)
     .limit(limit)
     .populate('sender', 'firstName lastName pseudo')
@@ -54,7 +51,6 @@ const sendMessage = async (senderId, conversationId, content) => {
     throw new AppError('Conversation invalide.', 400);
   }
 
-  // 1. Créer le message
   const message = await Message.create({
     conversationId,
     sender: senderId,
@@ -63,7 +59,6 @@ const sendMessage = async (senderId, conversationId, content) => {
 
   const messagePopulated = await message.populate('sender', 'firstName lastName pseudo');
 
-  // 2. Mettre à jour la conversation (dernier message et compteurs)
   const receiverId = conversation.participants.find(p => p.toString() !== senderId.toString());
   
   const currentUnread = conversation.unreadCounts.get(receiverId.toString()) || 0;
@@ -75,11 +70,11 @@ const sendMessage = async (senderId, conversationId, content) => {
   };
   await conversation.save();
 
-  // 3. Temps Réel: Diffuser le message dans le salon (room) Socket.io
   const io = socketConfig.getIo();
-  io.to(conversationId.toString()).emit('new_message', messagePopulated);
+  if (io) {
+    io.to(conversationId.toString()).emit('new_message', messagePopulated);
+  }
 
-  // 4. Temps Réel: Notifier le destinataire globalement pour qu'il voit la pastille bleue
   socketConfig.emitToUser(receiverId, 'notification_badge', { 
     type: 'message', 
     conversationId 
@@ -91,11 +86,9 @@ const sendMessage = async (senderId, conversationId, content) => {
 const markConversationAsRead = async (conversationId, userId) => {
   const conversation = await Conversation.findById(conversationId);
   if (conversation && conversation.participants.includes(userId)) {
-    // Remettre le compteur de cet utilisateur à 0
     conversation.unreadCounts.set(userId.toString(), 0);
     await conversation.save();
 
-    // Mettre à jour le statut des messages reçus à "read"
     await Message.updateMany(
       { conversationId, sender: { $ne: userId }, status: { $ne: 'read' } },
       { $set: { status: 'read' } }
@@ -104,10 +97,33 @@ const markConversationAsRead = async (conversationId, userId) => {
   return true;
 };
 
+const deleteMessage = async (userId, conversationId, messageId) => {
+  const message = await Message.findOne({ _id: messageId, conversationId });
+  
+  if (!message) {
+    throw new AppError('Message introuvable.', 404);
+  }
+
+  if (message.sender.toString() !== userId.toString()) {
+    throw new AppError('Vous n\'etes pas autorise a supprimer ce message.', 403);
+  }
+
+  await Message.findByIdAndDelete(messageId);
+
+  // Temps Reel: Notifier les clients pour retirer la bulle de discussion
+  const io = socketConfig.getIo();
+  if (io) {
+    io.to(conversationId.toString()).emit('message_deleted', { messageId });
+  }
+
+  return true;
+};
+
 module.exports = {
   getOrCreateConversation,
   getUserConversations,
   getMessages,
   sendMessage,
-  markConversationAsRead
+  markConversationAsRead,
+  deleteMessage
 };

@@ -1,19 +1,14 @@
 require('dotenv').config();
-const { z } = require('zod');
 
-const envSchema = z.object({
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  PORT: z.string().transform(Number).default('5000'),
-  MONGO_URI: z.string().url("MONGO_URI doit être une URL valide"),
-  CLIENT_URL: z.string().url("CLIENT_URL doit être une URL valide"),
-});
-
-const _env = envSchema.safeParse(process.env);
-
-if (!_env.success) {
-  console.error('Erreur critique: Variables d\'environnement invalides');
-  console.error(_env.error.format());
-  process.exit(1);
-}
-
-module.exports = _env.data;
+module.exports = {
+  PORT: process.env.PORT || 5000,
+  MONGO_URI: process.env.MONGO_URI,
+  JWT_SECRET: process.env.JWT_SECRET,
+  JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '30d',
+  SUPER_ADMIN_MAIL: process.env.SUPER_ADMIN_MAIL,
+  CLIENT_URL: process.env.CLIENT_URL,
+  CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
+  CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
+  CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
+  REDIS_URL: process.env.REDIS_URL,
+};

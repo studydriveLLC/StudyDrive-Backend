@@ -6,8 +6,14 @@ const logger = require('../config/logger');
 // Paramètres de connexion réutilisant l'URI Redis
 const connection = { url: process.env.REDIS_URI };
 
-// 1. Initialisation de la file d'attente
-const feedQueue = new Queue('feed-fanout', { connection });
+// 1. Initialisation de la file d'attente avec OPTIMISATION REDIS PAR DÉFAUT
+const feedQueue = new Queue('feed-fanout', { 
+  connection,
+  defaultJobOptions: {
+    removeOnComplete: true, // Purge instantanée de Redis en cas de succès
+    removeOnFail: 50        // On ne garde que les 50 dernières erreurs pour ne pas saturer la RAM
+  }
+});
 
 // 2. Logique d'exécution (Le Worker)
 const feedWorker = new Worker('feed-fanout', async (job) => {

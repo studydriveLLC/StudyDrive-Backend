@@ -12,4 +12,7 @@ router.get('/conversations', chatController.getMyConversations);
 router.get('/conversations/:conversationId/messages', chatController.getConversationMessages);
 router.post('/conversations/:conversationId/messages', chatController.postMessage);
 
+// Nouvelle route pour la suppression de message
+router.delete('/conversations/:conversationId/messages/:messageId', chatController.removeMessage);
+
 module.exports = router;

@@ -8,7 +8,7 @@ const router = express.Router();
 
 router.use(authMiddleware.protect);
 
-// Routes MyWord
+// --- Routes MyWord ---
 router.post('/documents', workspaceController.initDocument);
 router.get('/documents', workspaceController.getMyDocuments);
 router.patch(
@@ -17,15 +17,17 @@ router.patch(
   workspaceController.saveDocument
 );
 
-// Routes Ressources
+// --- Routes Ressources ---
 router.post(
   '/resources',
-  upload.single('file'), // Intercepte le fichier nommé "file" dans le form-data
+  upload.single('file'), 
   workspaceValidation.validate(workspaceValidation.createResourceSchema),
   workspaceController.uploadResource
 );
 
 router.get('/resources', workspaceController.getResources);
+router.put('/resources/:resourceId', workspaceController.editResource);
+router.delete('/resources/:resourceId', workspaceController.removeResource);
 router.post('/resources/:resourceId/download', workspaceController.trackDownload);
 
 module.exports = router;

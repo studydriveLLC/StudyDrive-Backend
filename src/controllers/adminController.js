@@ -1,43 +1,82 @@
 const adminService = require('../services/adminService');
 
-const getPendingCertifications = async (req, res, next) => {
+// --- Exclusif Super Admin ---
+const grantAdmin = async (req, res, next) => {
   try {
-    const page = parseInt(req.query.page, 10) || 1;
-    const limit = parseInt(req.query.limit, 10) || 20;
-
-    const requests = await adminService.getAllPendingRequests(page, limit);
-
-    res.status(200).json({
-      status: 'success',
-      results: requests.length,
-      data: { requests }
-    });
-  } catch (error) {
-    next(error);
-  }
+    const user = await adminService.promoteToAdmin(req.params.userId);
+    res.status(200).json({ status: 'success', data: { user } });
+  } catch (error) { next(error); }
 };
 
-const handleCertification = async (req, res, next) => {
+const removeAdmin = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const { decision, notes } = req.body;
+    const user = await adminService.revokeAdmin(req.params.userId);
+    res.status(200).json({ status: 'success', data: { user } });
+  } catch (error) { next(error); }
+};
 
-    if (!['approved', 'rejected'].includes(decision)) {
-      return res.status(400).json({ status: 'fail', message: 'La decision doit etre approved ou rejected' });
-    }
+// --- Modération Utilisateurs ---
+const getUsersList = async (req, res, next) => {
+  try {
+    const users = await adminService.getAllUsers(req.query);
+    res.status(200).json({ status: 'success', results: users.length, data: { users } });
+  } catch (error) { next(error); }
+};
 
-    const request = await adminService.processCertification(id, req.user._id, decision, notes);
+const toggleUserStatus = async (req, res, next) => {
+  try {
+    const { action } = req.body; // 'ban' ou 'unban'
+    const user = await adminService.moderateUser(req.params.userId, action);
+    res.status(200).json({ status: 'success', data: { user } });
+  } catch (error) { next(error); }
+};
 
-    res.status(200).json({
-      status: 'success',
-      data: { request }
-    });
-  } catch (error) {
-    next(error);
-  }
+// --- Modération Contenu ---
+const forceDeletePost = async (req, res, next) => {
+  try {
+    await adminService.deleteAnyPost(req.params.postId);
+    res.status(200).json({ status: 'success', message: 'Publication supprimee par moderation.' });
+  } catch (error) { next(error); }
+};
+
+const forceDeleteComment = async (req, res, next) => {
+  try {
+    await adminService.deleteAnyComment(req.params.postId, req.params.commentId);
+    res.status(200).json({ status: 'success', message: 'Commentaire supprime par moderation.' });
+  } catch (error) { next(error); }
+};
+
+const forceDeleteResource = async (req, res, next) => {
+  try {
+    await adminService.deleteAnyResource(req.params.resourceId);
+    res.status(200).json({ status: 'success', message: 'Ressource supprimee par moderation.' });
+  } catch (error) { next(error); }
+};
+
+// --- Certifications ---
+const listPendingCertifications = async (req, res, next) => {
+  try {
+    const requests = await adminService.getPendingCertifications();
+    res.status(200).json({ status: 'success', results: requests.length, data: { requests } });
+  } catch (error) { next(error); }
+};
+
+const resolveCertification = async (req, res, next) => {
+  try {
+    const { status, adminNotes } = req.body;
+    const request = await adminService.processCertification(req.params.requestId, req.user._id, status, adminNotes);
+    res.status(200).json({ status: 'success', data: { request } });
+  } catch (error) { next(error); }
 };
 
 module.exports = {
-  getPendingCertifications,
-  handleCertification
+  grantAdmin,
+  removeAdmin,
+  getUsersList,
+  toggleUserStatus,
+  forceDeletePost,
+  forceDeleteComment,
+  forceDeleteResource,
+  listPendingCertifications,
+  resolveCertification
 };

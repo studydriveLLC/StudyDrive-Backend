@@ -1,89 +1,57 @@
 const mongoose = require('mongoose');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 
-const userSchema = new mongoose.Schema(
-  {
-    firstName: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 50,
-    },
-    lastName: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: 50,
-    },
-    pseudo: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-      maxlength: 30,
-      index: true,
-    },
-    phone: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-      index: true,
-    },
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-      lowercase: true,
-      index: true,
-    },
-    university: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    password: {
-      type: String,
-      required: true,
-      minlength: 8,
-      select: false,
-    },
-    role: {
-      type: String,
-      enum: ['student', 'admin', 'moderator'],
-      default: 'student',
-    },
-    isVerified: {
-      type: Boolean,
-      default: false,
-    },
-    following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-    followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-    fcmTokens: [{ type: String }],
-    isDeleted: {
-      type: Boolean,
-      default: false,
-      select: false,
-    },
-    deletedAt: {
-      type: Date,
-      default: null,
-    }
+const userSchema = new mongoose.Schema({
+  firstName: { type: String, required: true, trim: true },
+  lastName: { type: String, required: true, trim: true },
+  pseudo: { type: String, required: true, unique: true, trim: true },
+  email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  phone: { type: String, required: true, unique: true },
+  university: { type: String, required: true, trim: true },
+  password: { type: String, required: true },
+  avatar: { type: String, default: null },
+  
+  role: { 
+    type: String, 
+    enum: ['user', 'admin', 'superadmin'], 
+    default: 'user' 
   },
-  {
-    timestamps: true,
-  }
-);
-
-userSchema.pre('save', async function () {
-  if (!this.isModified('password')) return;
-  this.password = await bcrypt.hash(this.password, 12);
+  badgeType: { 
+    type: String, 
+    enum: ['none', 'certified', 'admin', 'superadmin'], 
+    default: 'none' 
+  },
+  previousBadgeType: { 
+    type: String, 
+    enum: ['none', 'certified'], 
+    default: 'none' 
+  },
+  
+  isEmailVerified: { type: Boolean, default: false },
+  isActive: { type: Boolean, default: true },
+}, { 
+  timestamps: true 
 });
 
-userSchema.methods.comparePassword = async function (candidatePassword, userPassword) {
-  return await bcrypt.compare(candidatePassword, userPassword);
+userSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) return next();
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+userSchema.methods.comparePassword = async function (candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
 };
 
-const User = mongoose.model('User', userSchema);
-module.exports = User;
+userSchema.methods.toJSON = function () {
+  const userObject = this.toObject();
+  delete userObject.password;
+  return userObject;
+};
+
+module.exports = mongoose.model('User', userSchema);
