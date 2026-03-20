@@ -2,7 +2,7 @@ const resourceService = require('../services/resourceService');
 const catchAsync = require('../utils/catchAsync');
 const AppError = require('../utils/AppError');
 const cloudinary = require('../config/cloudinary');
-const { Readable } = require('stream');
+const fs = require('fs');
 
 exports.getResources = catchAsync(async (req, res) => {
   const data = await resourceService.getAllResources(req.query);
@@ -19,9 +19,9 @@ exports.logDownload = catchAsync(async (req, res) => {
   res.status(200).json({ status: 'success', data: { id: resource._id, downloads: resource.downloads } });
 });
 
-exports.uploadResource = catchAsync(async (req, res) => {
+exports.uploadResource = catchAsync(async (req, res, next) => {
   if (!req.file) {
-    throw new AppError('Aucun fichier n\'a été reçu', 400);
+    return next(new AppError('Aucun fichier n\'a été reçu', 400));
   }
 
   let format = 'pdf';
@@ -31,26 +31,20 @@ exports.uploadResource = catchAsync(async (req, res) => {
   if (req.file.mimetype === 'application/msword') format = 'doc';
   if (req.file.mimetype.includes('spreadsheetml.sheet')) format = 'xlsx';
 
-  const uploadToCloudinary = () => {
-    return new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        { 
-          folder: 'studydrive_resources', 
-          resource_type: 'auto' 
-        },
-        (error, result) => {
-          if (error) {
-            console.error('Erreur Cloudinary:', error);
-            return reject(new AppError('Echec de l\'envoi vers le serveur de stockage. Vérifiez vos clés Cloudinary.', 500));
-          }
-          resolve(result);
-        }
-      );
-      Readable.from(req.file.buffer).pipe(stream);
+  let cloudinaryResult;
+  try {
+    cloudinaryResult = await cloudinary.uploader.upload(req.file.path, {
+      folder: 'studydrive_resources',
+      resource_type: 'auto'
     });
-  };
-
-  const cloudinaryResult = await uploadToCloudinary();
+  } catch (error) {
+    console.error('Erreur Cloudinary:', error);
+    return next(new AppError('Echec de l\'envoi vers le serveur de stockage. Vérifiez vos clés Cloudinary.', 500));
+  } finally {
+    if (req.file.path && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+  }
 
   const defaultDescription = `Document de ${req.body.category} pour le niveau ${req.body.level}.`;
 
