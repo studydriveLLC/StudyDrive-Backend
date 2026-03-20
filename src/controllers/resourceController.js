@@ -39,10 +39,13 @@ exports.uploadResource = catchAsync(async (req, res) => {
   if (req.file.mimetype === 'image/png') format = 'png';
   if (req.file.mimetype.includes('wordprocessingml.document')) format = 'docx';
   if (req.file.mimetype === 'application/msword') format = 'doc';
+  if (req.file.mimetype.includes('spreadsheetml.sheet')) format = 'xlsx';
+
+  const defaultDescription = `Document de ${req.body.category} pour le niveau ${req.body.level}.`;
 
   const resourceData = {
     title: req.body.title,
-    description: req.body.description,
+    description: req.body.description || defaultDescription,
     category: req.body.category,
     level: req.body.level,
     fileUrl: req.file.path, 

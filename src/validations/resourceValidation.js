@@ -3,7 +3,6 @@ const { z } = require('zod');
 const createResourceSchema = z.object({
   body: z.object({
     title: z.string().min(3, "Le titre doit contenir au moins 3 caractères").max(100),
-    description: z.string().min(10, "La description doit contenir au moins 10 caractères").max(1000),
     category: z.string().min(2, "La catégorie est requise"),
     level: z.string().min(2, "Le niveau est requis"),
   }).strict(),
