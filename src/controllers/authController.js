@@ -10,7 +10,6 @@ const cookieOptions = {
   maxAge: 7 * 24 * 60 * 60 * 1000, 
 };
 
-// Les try/catch sont gérés par catchAsync dans le routeur
 const register = async (req, res) => {
   const user = await authService.registerUser(req.body);
   const tokens = tokenService.generateAuthTokens(user._id);
@@ -52,8 +51,44 @@ const logout = (req, res) => {
   res.status(200).json({ status: 'success' });
 };
 
+const refreshToken = async (req, res) => {
+  const currentRefreshToken = req.cookies.refreshToken;
+
+  if (!currentRefreshToken) {
+    return res.status(401).json({ 
+      status: 'fail', 
+      message: 'Refresh token manquant. Veuillez vous reconnecter.' 
+    });
+  }
+
+  try {
+    const decoded = tokenService.verifyRefreshToken(currentRefreshToken);
+
+    const tokens = tokenService.generateAuthTokens(decoded.id);
+
+    res.cookie('refreshToken', tokens.refreshToken, cookieOptions);
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        accessToken: tokens.accessToken,
+      },
+    });
+  } catch (error) {
+    res.cookie('refreshToken', 'loggedout', {
+      ...cookieOptions,
+      maxAge: 10 * 1000,
+    });
+    return res.status(401).json({ 
+      status: 'fail', 
+      message: 'Refresh token invalide ou expiré. Veuillez vous reconnecter.' 
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
   logout,
+  refreshToken,
 };
