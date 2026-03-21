@@ -19,4 +19,8 @@ router.post(
   resourceController.uploadResource
 );
 
+router.put('/:id', resourceController.updateResource);
+router.post('/:id/favorite', resourceController.toggleFavorite);
+router.post('/:id/report', resourceController.reportResource);
+
 module.exports = router;

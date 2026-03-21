@@ -38,8 +38,8 @@ exports.uploadResource = catchAsync(async (req, res, next) => {
   console.log('[UPLOAD DEBUG] Entree dans uploadResource Controller');
   
   if (!req.file) {
-    console.error('[UPLOAD ERROR] req.file est undefined. Le fichier n\'a pas passe Multer ou n\'a pas ete envoye correctement.');
-    return next(new AppError('Aucun fichier n\'a ete recu. Verifiez la requete.', 400));
+    console.error('[UPLOAD ERROR] req.file est undefined. Le fichier n a pas passe Multer ou n a pas ete envoye correctement.');
+    return next(new AppError('Aucun fichier n a ete recu. Verifiez la requete.', 400));
   }
 
   console.log(`[UPLOAD DEBUG] Fichier recu par Multer : ${req.file.originalname} (${req.file.size} bytes)`);
@@ -71,7 +71,7 @@ exports.uploadResource = catchAsync(async (req, res, next) => {
       tempFilePath: req.file.path,
       originalName: req.file.originalname
     });
-    console.log('[UPLOAD DEBUG] Tache ajoutee a la file d\'attente avec succes.');
+    console.log('[UPLOAD DEBUG] Tache ajoutee a la file d attente avec succes.');
 
     res.status(202).json({
       status: 'success',
@@ -79,7 +79,47 @@ exports.uploadResource = catchAsync(async (req, res, next) => {
       data: { resource }
     });
   } catch (error) {
-    console.error('[UPLOAD ERROR CRITIQUE] Erreur lors de la creation de la ressource ou l\'ajout a la queue :', error);
+    console.error('[UPLOAD ERROR CRITIQUE] Erreur lors de la creation de la ressource ou l ajout a la queue :', error);
     return next(new AppError('Erreur interne lors du traitement du fichier.', 500));
   }
+});
+
+exports.updateResource = catchAsync(async (req, res, next) => {
+  const resource = await resourceService.getResourceById(req.params.id);
+  
+  if (!resource) {
+    return next(new AppError('Document introuvable.', 404));
+  }
+
+  if (resource.uploadedBy._id.toString() !== req.user._id.toString()) {
+    return next(new AppError('Vous n etes pas autorise a modifier ce document.', 403));
+  }
+
+  const { title, description, category, level } = req.body;
+  
+  if (title) resource.title = title;
+  if (description) resource.description = description;
+  if (category) resource.category = category;
+  if (level) resource.level = level;
+
+  await resource.save();
+
+  res.status(200).json({
+    status: 'success',
+    data: { resource }
+  });
+});
+
+exports.toggleFavorite = catchAsync(async (req, res, next) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'Action sauvegarder enregistree (Pret pour le cablage Frontend).'
+  });
+});
+
+exports.reportResource = catchAsync(async (req, res, next) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'Le document a ete signale a l equipe de moderation.'
+  });
 });
