@@ -47,7 +47,7 @@ exports.logView = catchAsync(async (req, res, next) => {
   
   try {
     getIo().emit('resourceStatsUpdated', { 
-      id: resource._id, 
+      id: resource._id.toString(), 
       views: resource.views, 
       downloads: resource.downloads 
     });
@@ -74,7 +74,7 @@ exports.logDownload = catchAsync(async (req, res, next) => {
   
   try {
     getIo().emit('resourceStatsUpdated', { 
-      id: resource._id, 
+      id: resource._id.toString(), 
       views: resource.views, 
       downloads: resource.downloads 
     });
@@ -117,7 +117,9 @@ exports.uploadResource = catchAsync(async (req, res, next) => {
     });
 
     try {
-      getIo().emit('newResource', resource);
+      // Peupler les donnees utilisateur pour que le frontend puisse afficher la carte correctement
+      const populatedResource = await Resource.findById(resource._id).populate('uploadedBy', 'firstName lastName avatar role');
+      getIo().emit('newResource', populatedResource || resource);
     } catch (error) {
       console.error('Erreur Socket lors de l emission de la nouvelle ressource:', error);
     }
