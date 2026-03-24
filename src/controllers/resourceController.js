@@ -100,13 +100,6 @@ exports.uploadResource = catchAsync(async (req, res, next) => {
       originalName: req.file.originalname
     });
 
-    try {
-      const populatedResource = await Resource.findById(resource._id).populate('uploadedBy', 'firstName lastName avatar role');
-      getIo().emit('newResource', populatedResource || resource);
-    } catch (error) {
-      console.error('Erreur Socket lors de l emission de la nouvelle ressource:', error);
-    }
-
     res.status(202).json({
       status: 'success',
       message: 'Votre document est en cours de traitement. Il sera disponible dans quelques instants.',

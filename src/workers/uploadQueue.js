@@ -3,7 +3,6 @@ const cloudinary = require('../config/cloudinary');
 const Resource = require('../models/Resource');
 const logger = require('../config/logger');
 const fs = require('fs');
-const { getIo } = require('../config/socket');
 
 const connection = { url: process.env.REDIS_URI };
 
@@ -27,8 +26,6 @@ const uploadWorker = new Worker('resource-upload', async (job) => {
 
   let cloudinaryResult;
 
-  // Optimisation Senior : Détection stricte pour les formats bureautiques
-  // Cloudinary nécessite souvent le mode 'raw' pour ne pas corrompre les docx/xls/zip
   const isRawFormat = originalName.match(/\.(doc|docx|xls|xlsx|ppt|pptx|zip|rar|txt)$/i);
   const resourceType = isRawFormat ? 'raw' : 'auto';
 
@@ -70,19 +67,11 @@ const uploadWorker = new Worker('resource-upload', async (job) => {
 
   logger.info(`Worker upload: ressource ${resourceId} disponible - ${cloudinaryResult.secure_url}`);
 
-  try {
-    const io = getIo();
-    // Correction Majeure : Utilisation de 'newResource' en camelCase pour matcher le Frontend
-    io.emit('newResource', updatedResource);
-    logger.info(`Signal temps reel 'newResource' envoye a tous les clients.`);
-  } catch (err) {
-    logger.error('Erreur lors de l emission Socket.io:', err);
-  }
-
   return {
     status: 'success',
     resourceId,
-    fileUrl: cloudinaryResult.secure_url
+    fileUrl: cloudinaryResult.secure_url,
+    resourceData: updatedResource
   };
 }, { connection });
 

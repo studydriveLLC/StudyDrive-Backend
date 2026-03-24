@@ -1,5 +1,6 @@
 const socketIo = require('socket.io');
 const { createAdapter } = require('@socket.io/redis-adapter');
+const { QueueEvents } = require('bullmq');
 const jwt = require('jsonwebtoken');
 const env = require('./env');
 const logger = require('./logger');
@@ -16,14 +17,30 @@ const initSocket = (server) => {
       methods: ['GET', 'POST'],
       credentials: true
     },
-    // Tolérance réseau (Blindage)
-    pingTimeout: 60000, // Attendre 60s sans réponse avant de considérer le client comme déconnecté
-    pingInterval: 25000 // Envoyer un ping toutes les 25s
+    pingTimeout: 60000,
+    pingInterval: 25000
   });
 
   const pubClient = redisClient.duplicate();
   const subClient = redisClient.duplicate();
   io.adapter(createAdapter(pubClient, subClient));
+
+  // Ecoute native des evenements de la file d'attente (Worker -> Main Process)
+  const uploadEvents = new QueueEvents('resource-upload', {
+    connection: { url: process.env.REDIS_URI }
+  });
+
+  uploadEvents.on('completed', ({ jobId, returnvalue }) => {
+    try {
+      const result = typeof returnvalue === 'string' ? JSON.parse(returnvalue) : returnvalue;
+      if (result && result.resourceData) {
+        io.emit('newResource', result.resourceData);
+        logger.info(`Ressource prete emise via Socket (Job: ${jobId})`);
+      }
+    } catch (error) {
+      logger.error('Erreur lors de l emission Socket depuis QueueEvents:', error);
+    }
+  });
 
   io.use(async (socket, next) => {
     try {
@@ -74,7 +91,7 @@ const emitToUser = (userId, event, data) => {
 };
 
 const getIo = () => {
-  if (!io) throw new Error('Socket.io n\'a pas ete initialise.');
+  if (!io) throw new Error('Socket.io n a pas ete initialise.');
   return io;
 };
 
