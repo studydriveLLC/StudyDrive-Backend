@@ -1,3 +1,4 @@
+// src/services/authService.js
 const User = require('../models/User');
 const AppError = require('../utils/AppError');
 const bcrypt = require('bcrypt');
@@ -60,14 +61,30 @@ const loginUser = async (identifier, password) => {
     throw new AppError('Identifiants incorrects.', 401);
   }
 
-
   const userResponse = user.toObject();
   delete userResponse.password;
 
   return userResponse;
 };
 
+// NOUVEAU : Fonction de mise a jour du mot de passe
+const updatePassword = async (userId, currentPassword, newPassword) => {
+  const user = await User.findById(userId).select('+password');
+  if (!user) throw new AppError('Utilisateur introuvable.', 404);
+
+  const isPasswordCorrect = await bcrypt.compare(currentPassword, user.password);
+  if (!isPasswordCorrect) throw new AppError('L\'ancien mot de passe est incorrect.', 401);
+
+  user.password = newPassword;
+  await user.save(); // Déclenchera le hook pre('save') pour hasher le nouveau mot de passe
+
+  const userResponse = user.toObject();
+  delete userResponse.password;
+  return userResponse;
+};
+
 module.exports = {
   registerUser,
   loginUser,
+  updatePassword // Exporter la nouvelle fonction
 };

@@ -1,3 +1,4 @@
+// src/controllers/authController.js
 const authService = require('../services/authService');
 const tokenService = require('../services/tokenService');
 const env = require('../config/env');
@@ -51,6 +52,21 @@ const logout = (req, res) => {
   res.status(200).json({ status: 'success' });
 };
 
+// NOUVEAU : Changement de mot de passe
+const updateMyPassword = async (req, res) => {
+  const { currentPassword, password } = req.body;
+  const user = await authService.updatePassword(req.user._id, currentPassword, password);
+  
+  // Générer de nouveaux tokens pour ne pas déconnecter l'utilisateur après le changement
+  const tokens = tokenService.generateAuthTokens(user._id);
+  res.cookie('refreshToken', tokens.refreshToken, cookieOptions);
+  
+  res.status(200).json({ 
+    status: 'success', 
+    data: { user, accessToken: tokens.accessToken } 
+  });
+};
+
 const refreshToken = async (req, res) => {
   const currentRefreshToken = req.cookies.refreshToken;
 
@@ -63,7 +79,6 @@ const refreshToken = async (req, res) => {
 
   try {
     const decoded = tokenService.verifyRefreshToken(currentRefreshToken);
-
     const tokens = tokenService.generateAuthTokens(decoded.id);
 
     res.cookie('refreshToken', tokens.refreshToken, cookieOptions);
@@ -90,5 +105,6 @@ module.exports = {
   register,
   login,
   logout,
+  updateMyPassword, // Exporter la nouvelle fonction
   refreshToken,
 };

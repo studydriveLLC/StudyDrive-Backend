@@ -1,8 +1,11 @@
+// src/services/userService.js
 const User = require('../models/User');
 const Post = require('../models/Post');
 const Document = require('../models/Document');
 const CertificationRequest = require('../models/CertificationRequest');
 const AppError = require('../utils/AppError');
+const cloudinary = require('../config/cloudinary');
+const fs = require('fs');
 
 const getUserProfile = async (userId) => {
   const user = await User.findById(userId).select('-password').lean();
@@ -13,8 +16,8 @@ const getUserProfile = async (userId) => {
 };
 
 const updateUserProfile = async (userId, data) => {
-  // Ajout de 'pseudo' pour permettre la modification via le frontend
-  const allowedFields = ['avatar', 'university', 'phone', 'firstName', 'lastName', 'pseudo'];
+  // CORRECTION : Ajout de 'bio' pour permettre la modification via le frontend
+  const allowedFields = ['avatar', 'university', 'phone', 'firstName', 'lastName', 'pseudo', 'bio'];
   const updateData = {};
 
   // Sécurité : Vérification de l'unicité du pseudo si on tente de le modifier
@@ -49,6 +52,36 @@ const updateUserProfile = async (userId, data) => {
   }
 
   return updatedUser;
+};
+
+// NOUVEAU : Fonction d'upload d'avatar
+const uploadUserAvatar = async (userId, file) => {
+  if (!file) {
+    throw new AppError('Aucun fichier image fourni.', 400);
+  }
+
+  try {
+    const cloudinaryResult = await cloudinary.uploader.upload(file.path, {
+      folder: 'LokoNet_avatars',
+      transformation: [{ width: 500, height: 500, crop: 'fill' }]
+    });
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { avatar: cloudinaryResult.secure_url },
+      { new: true }
+    ).select('-password');
+
+    // Nettoyage du fichier local
+    if (fs.existsSync(file.path)) {
+      fs.unlinkSync(file.path);
+    }
+
+    return updatedUser;
+  } catch (error) {
+    if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+    throw new AppError('Erreur lors de la sauvegarde de l\'image.', 500);
+  }
 };
 
 const getUserStats = async (userId) => {
@@ -119,6 +152,7 @@ const submitCertificationRequest = async (userId) => {
 module.exports = {
   getUserProfile,
   updateUserProfile,
+  uploadUserAvatar, // Exporter la nouvelle fonction
   getUserStats,
   deleteAccount,
   submitCertificationRequest

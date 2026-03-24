@@ -1,3 +1,4 @@
+// src/controllers/userController.js
 const userService = require('../services/userService');
 const env = require('../config/env');
 
@@ -26,6 +27,19 @@ const updateProfile = async (req, res, next) => {
     res.status(200).json({
       status: 'success',
       data: { user }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// NOUVEAU : Upload Avatar
+const uploadAvatar = async (req, res, next) => {
+  try {
+    const user = await userService.uploadUserAvatar(req.user._id, req.file);
+    res.status(200).json({
+      status: 'success',
+      data: { user, avatarUrl: user.avatar }
     });
   } catch (error) {
     next(error);
@@ -76,6 +90,7 @@ const requestCertification = async (req, res, next) => {
 module.exports = {
   getProfile,
   updateProfile,
+  uploadAvatar, // Exporter la nouvelle fonction
   getStats,
   deleteMe,
   requestCertification
