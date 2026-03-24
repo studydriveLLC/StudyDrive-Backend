@@ -24,6 +24,8 @@ router.post(
 router.put('/:id', resourceController.updateResource);
 router.delete('/:id', resourceController.deleteResource);
 router.post('/:id/favorite', resourceController.toggleFavorite);
-router.post('/:id/report', resourceController.reportResource);
+
+// Modification critique : esquive des bloqueurs de reseau
+router.post('/:id/signal', resourceController.reportResource);
 
 module.exports = router;
