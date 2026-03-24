@@ -1,10 +1,10 @@
 const socketIo = require('socket.io');
 const { createAdapter } = require('@socket.io/redis-adapter');
 const jwt = require('jsonwebtoken');
-const env = require('./env'); // src/config/env.js
-const logger = require('./logger'); // src/config/logger.js
-const User = require('../models/User'); // Remonte d'un cran vers src/models/
-const redisClient = require('./redis'); // src/config/redis.js
+const env = require('./env');
+const logger = require('./logger');
+const User = require('../models/User');
+const redisClient = require('./redis');
 
 let io;
 const connectedUsers = new Map();
@@ -15,7 +15,10 @@ const initSocket = (server) => {
       origin: env.NODE_ENV === 'production' ? env.CLIENT_URL : '*',
       methods: ['GET', 'POST'],
       credentials: true
-    }
+    },
+    // Tolérance réseau (Blindage)
+    pingTimeout: 60000, // Attendre 60s sans réponse avant de considérer le client comme déconnecté
+    pingInterval: 25000 // Envoyer un ping toutes les 25s
   });
 
   const pubClient = redisClient.duplicate();
@@ -55,9 +58,9 @@ const initSocket = (server) => {
       socket.to(conversationId).emit('user_typing', { userId, isTyping });
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', (reason) => {
       connectedUsers.delete(userId);
-      logger.info(`Utilisateur deconnecte du Socket: ${userId}`);
+      logger.info(`Utilisateur deconnecte du Socket: ${userId} (Raison: ${reason})`);
     });
   });
 
