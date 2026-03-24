@@ -2,6 +2,18 @@ const Resource = require('../models/Resource');
 const AppError = require('../utils/AppError');
 const redisClient = require('../config/redis');
 
+// Fonction utilitaire pour purger le cache de la liste des ressources
+const invalidateFeedCache = async () => {
+  try {
+    const keys = await redisClient.keys('resources:feed:*');
+    if (keys.length > 0) {
+      await redisClient.del(keys);
+    }
+  } catch (err) {
+    console.error('Erreur lors de l invalidation du cache feed:', err);
+  }
+};
+
 exports.getAllResources = async (query) => {
   const { search, category, level, sort, page = 1, limit = 10 } = query;
 
@@ -93,6 +105,7 @@ exports.trackView = async (id) => {
   
   try {
      await redisClient.del(`resource:detail:${id}`);
+     await invalidateFeedCache();
   } catch (err) {}
 
   return resource;
@@ -111,6 +124,7 @@ exports.trackDownload = async (id) => {
   
   try {
      await redisClient.del(`resource:detail:${id}`);
+     await invalidateFeedCache();
   } catch (err) {}
 
   return resource;
@@ -118,13 +132,6 @@ exports.trackDownload = async (id) => {
 
 exports.createResource = async (resourceData) => {
   const resource = await Resource.create(resourceData);
-  
-  try {
-    const keys = await redisClient.keys('resources:feed:*');
-    if (keys.length > 0) {
-      await redisClient.del(keys);
-    }
-  } catch (err) {}
-  
+  await invalidateFeedCache();
   return resource;
 };

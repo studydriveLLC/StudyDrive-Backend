@@ -35,16 +35,8 @@ exports.getResource = catchAsync(async (req, res, next) => {
 });
 
 exports.logView = catchAsync(async (req, res, next) => {
-  const resource = await Resource.findByIdAndUpdate(
-    req.params.id,
-    { $inc: { views: 1 } },
-    { new: true }
-  );
+  const resource = await resourceService.trackView(req.params.id);
 
-  if (!resource) {
-    return next(new AppError('Document introuvable.', 404));
-  }
-  
   try {
     getIo().emit('resourceStatsUpdated', { 
       id: resource._id.toString(), 
@@ -62,15 +54,7 @@ exports.logView = catchAsync(async (req, res, next) => {
 });
 
 exports.logDownload = catchAsync(async (req, res, next) => {
-  const resource = await Resource.findByIdAndUpdate(
-    req.params.id,
-    { $inc: { downloads: 1 } },
-    { new: true }
-  );
-
-  if (!resource) {
-    return next(new AppError('Document introuvable.', 404));
-  }
+  const resource = await resourceService.trackDownload(req.params.id);
   
   try {
     getIo().emit('resourceStatsUpdated', { 
@@ -117,7 +101,6 @@ exports.uploadResource = catchAsync(async (req, res, next) => {
     });
 
     try {
-      // Peupler les donnees utilisateur pour que le frontend puisse afficher la carte correctement
       const populatedResource = await Resource.findById(resource._id).populate('uploadedBy', 'firstName lastName avatar role');
       getIo().emit('newResource', populatedResource || resource);
     } catch (error) {
