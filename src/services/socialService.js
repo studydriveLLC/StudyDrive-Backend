@@ -1,4 +1,3 @@
-//src/services/socialService.js
 const User = require('../models/User');
 const Post = require('../models/Post');
 const Feed = require('../models/Feed');
@@ -36,7 +35,10 @@ const followUser = async (currentUserId, targetUserId) => {
     dataPayload: { screen: 'Profile', userId: currentUserId.toString() }
   });
 
-  socketConfig.emitToUser(targetUserId, 'follow_stats_updated', { action: 'follow' });
+  socketConfig.emitToUser(targetUserId, 'follow_stats_updated', { 
+    action: 'follow', 
+    userId: currentUserId.toString() 
+  });
 
   return true;
 };
@@ -52,7 +54,10 @@ const unfollowUser = async (currentUserId, targetUserId) => {
 
   await User.findByIdAndUpdate(currentUserId, { $pull: { following: targetUserId } });
   
-  socketConfig.emitToUser(targetUserId, 'follow_stats_updated', { action: 'unfollow' });
+  socketConfig.emitToUser(targetUserId, 'follow_stats_updated', { 
+    action: 'unfollow', 
+    userId: currentUserId.toString() 
+  });
 
   return true;
 };
