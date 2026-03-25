@@ -24,7 +24,15 @@ exports.getAllResources = async (query) => {
   } catch (err) {}
 
   const filter = { status: 'ready' };
-  if (search) filter.$text = { $search: search };
+  
+  // NOUVEAU : Recherche intelligente, partielle et insensible à la casse
+  if (search) {
+    filter.$or = [
+      { title: { $regex: search, $options: 'i' } },
+      { description: { $regex: search, $options: 'i' } }
+    ];
+  }
+  
   if (category) filter.category = category;
   if (level) filter.level = level;
 
