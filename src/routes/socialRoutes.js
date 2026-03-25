@@ -1,3 +1,4 @@
+src/routes/socialRoutes.js
 const express = require('express');
 const socialController = require('../controllers/socialController');
 const socialValidation = require('../validations/socialValidation');
@@ -9,6 +10,8 @@ router.use(authMiddleware.protect);
 
 router.post('/follow/:targetId', socialValidation.validate(socialValidation.targetUserSchema), socialController.follow);
 router.post('/unfollow/:targetId', socialValidation.validate(socialValidation.targetUserSchema), socialController.unfollow);
+router.get('/status/:targetId', socialValidation.validate(socialValidation.targetUserSchema), socialController.getFollowStatus);
+router.get('/my-stats', socialController.getMyFollowStats);
 
 router.post('/posts', socialValidation.validate(socialValidation.createPostSchema), socialController.createPost);
 router.get('/feed', socialController.getFeed);

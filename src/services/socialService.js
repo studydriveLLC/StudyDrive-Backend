@@ -1,3 +1,4 @@
+src/services/socialService.js
 const User = require('../models/User');
 const Post = require('../models/Post');
 const Feed = require('../models/Feed');
@@ -48,6 +49,24 @@ const unfollowUser = async (currentUserId, targetUserId) => {
 
   await User.findByIdAndUpdate(currentUserId, { $pull: { following: targetUserId } });
   return true;
+};
+
+const getFollowStatus = async (currentUserId, targetUserId) => {
+  const user = await User.findById(currentUserId).select('following').lean();
+  if (!user) throw new AppError('Utilisateur introuvable.', 404);
+  
+  const isFollowing = user.following.some(id => id.toString() === targetUserId.toString());
+  return { isFollowing };
+};
+
+const getMyFollowStats = async (userId) => {
+  const user = await User.findById(userId).select('followers following').lean();
+  if (!user) throw new AppError('Utilisateur introuvable.', 404);
+  
+  return {
+    followersCount: user.followers ? user.followers.length : 0,
+    followingCount: user.following ? user.following.length : 0
+  };
 };
 
 const createPost = async (authorId, postData) => {
@@ -226,6 +245,8 @@ const getUserFeed = async (userId, page = 1, limit = 10) => {
 module.exports = {
   followUser,
   unfollowUser,
+  getFollowStatus,
+  getMyFollowStats,
   createPost,
   getPost,
   updatePost,

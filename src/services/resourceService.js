@@ -1,7 +1,9 @@
-// src/services/resourceService.js
+src/services/resourceService.js
 const Resource = require('../models/Resource');
+const User = require('../models/User');
 const AppError = require('../utils/AppError');
 const redisClient = require('../config/redis');
+const notificationService = require('./notificationService');
 
 const invalidateFeedCache = async () => {
   try {
@@ -25,7 +27,6 @@ exports.getAllResources = async (query) => {
 
   const filter = { status: 'ready' };
   
-  // NOUVEAU : Recherche intelligente, partielle et insensible à la casse
   if (search) {
     filter.$or = [
       { title: { $regex: search, $options: 'i' } },
@@ -37,11 +38,9 @@ exports.getAllResources = async (query) => {
   if (level) filter.level = level;
 
   const skip = (page - 1) * limit;
-  // POPULATE MIS A JOUR : Ajout de isVerified et badge pour l'UI Frontend
   let queryBuilder = Resource.find(filter).populate('uploadedBy', 'pseudo avatar isVerified badge role').skip(skip).limit(limit);
 
   if (sort === 'popular') {
-    // AJOUT : Prise en compte des partages dans l'algorithme de popularite
     queryBuilder = queryBuilder.sort({ downloads: -1, shares: -1, views: -1 });
   } else {
     queryBuilder = queryBuilder.sort({ createdAt: -1 });
@@ -64,7 +63,6 @@ exports.getAllResources = async (query) => {
 exports.getMyResources = async (userId) => {
   const resources = await Resource.find({ uploadedBy: userId })
     .sort({ createdAt: -1 })
-    // POPULATE MIS A JOUR
     .populate('uploadedBy', 'pseudo avatar isVerified badge role');
   return resources;
 };
@@ -76,7 +74,6 @@ exports.getResourceById = async (id) => {
     if (cachedData) return JSON.parse(cachedData);
   } catch (err) {}
 
-  // POPULATE MIS A JOUR
   const resource = await Resource.findById(id).populate('uploadedBy', 'pseudo avatar isVerified badge role');
   if (!resource) throw new AppError('Ressource non trouvee.', 404);
   if (resource.status !== 'ready') throw new AppError('Cette ressource est en cours de traitement, elle sera disponible dans quelques instants.', 202);
@@ -108,7 +105,6 @@ exports.trackDownload = async (id) => {
   return resource;
 };
 
-// NOUVEAU : Traitement du compteur de partages avec invalidation du cache
 exports.trackShare = async (id) => {
   const resource = await Resource.findByIdAndUpdate(id, { $inc: { shares: 1 } }, { new: true, runValidators: true });
   if (!resource) throw new AppError('Ressource non trouvee.', 404);
@@ -122,6 +118,25 @@ exports.trackShare = async (id) => {
 exports.createResource = async (resourceData) => {
   const resource = await Resource.create(resourceData);
   await invalidateFeedCache();
+
+  try {
+    const author = await User.findById(resourceData.uploadedBy).select('followers pseudo');
+    if (author && author.followers && author.followers.length > 0) {
+      author.followers.forEach(followerId => {
+        notificationService.sendNotification({
+          recipientId: followerId,
+          senderId: author._id,
+          type: 'system',
+          referenceId: resource._id,
+          content: `${author.pseudo} a publie une nouvelle ressource.`,
+          dataPayload: { screen: 'ResourceDetail', resourceId: resource._id.toString(), type: 'RESOURCE_LINK' }
+        }).catch(err => console.error("Erreur notification push follower:", err));
+      });
+    }
+  } catch (err) {
+    console.error("Erreur lors de l'envoi des notifications aux followers:", err);
+  }
+
   return resource;
 };
 
@@ -141,7 +156,6 @@ exports.updateResource = async (id, userId, userRole, updateData) => {
   await resource.save();
   await invalidateFeedCache(); 
   
-  // POPULATE MIS A JOUR
   await resource.populate('uploadedBy', 'pseudo avatar isVerified badge role');
   return resource;
 };

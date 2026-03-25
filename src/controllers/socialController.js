@@ -1,3 +1,4 @@
+src/controllers/socialController.js
 const socialService = require('../services/socialService');
 
 const follow = async (req, res, next) => {
@@ -11,6 +12,20 @@ const unfollow = async (req, res, next) => {
   try {
     await socialService.unfollowUser(req.user._id, req.params.targetId);
     res.status(200).json({ status: 'success', message: 'Utilisateur desabonne avec succes.' });
+  } catch (error) { next(error); }
+};
+
+const getFollowStatus = async (req, res, next) => {
+  try {
+    const data = await socialService.getFollowStatus(req.user._id, req.params.targetId);
+    res.status(200).json({ status: 'success', data });
+  } catch (error) { next(error); }
+};
+
+const getMyFollowStats = async (req, res, next) => {
+  try {
+    const data = await socialService.getMyFollowStats(req.user._id);
+    res.status(200).json({ status: 'success', data });
   } catch (error) { next(error); }
 };
 
@@ -90,6 +105,8 @@ const getFeed = async (req, res, next) => {
 module.exports = {
   follow,
   unfollow,
+  getFollowStatus,
+  getMyFollowStats,
   createPost,
   getPost,
   updatePost,
