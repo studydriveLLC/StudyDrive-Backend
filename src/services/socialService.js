@@ -58,11 +58,13 @@ const unfollowUser = async (currentUserId, targetUserId) => {
 };
 
 const getFollowStatus = async (currentUserId, targetUserId) => {
-  const user = await User.findById(currentUserId).select('following').lean();
+  const user = await User.findById(currentUserId).select('following followers').lean();
   if (!user) throw new AppError('Utilisateur introuvable.', 404);
   
-  const isFollowing = user.following.some(id => id.toString() === targetUserId.toString());
-  return { isFollowing };
+  const isFollowing = user.following ? user.following.some(id => id.toString() === targetUserId.toString()) : false;
+  const isFollower = user.followers ? user.followers.some(id => id.toString() === targetUserId.toString()) : false;
+
+  return { isFollowing, isFollower };
 };
 
 const getMyFollowStats = async (userId) => {

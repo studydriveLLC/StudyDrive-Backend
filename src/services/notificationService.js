@@ -12,7 +12,8 @@ const sendNotification = async ({ recipientId, senderId, type, referenceId, cont
       sender: senderId,
       type,
       referenceId,
-      content
+      content,
+      dataPayload
     });
 
     socketConfig.emitToUser(recipientId, 'new_notification', notification);

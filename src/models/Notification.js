@@ -1,3 +1,4 @@
+//src/models/Notification.js
 const mongoose = require('mongoose');
 
 const notificationSchema = new mongoose.Schema({
@@ -24,6 +25,9 @@ const notificationSchema = new mongoose.Schema({
     type: String, 
     required: true
   },
+  dataPayload: {
+    type: mongoose.Schema.Types.Mixed
+  },
   isRead: {
     type: Boolean,
     default: false
@@ -32,10 +36,8 @@ const notificationSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Index pour lister rapidement les notifications non lues d'un utilisateur
 notificationSchema.index({ recipient: 1, isRead: 1, createdAt: -1 });
 
-// NOUVEAU : TTL Index - MongoDB nettoiera automatiquement les notifications après 15 jours
 notificationSchema.index({ createdAt: 1 }, { expireAfterSeconds: 1296000 });
 
 module.exports = mongoose.model('Notification', notificationSchema);
