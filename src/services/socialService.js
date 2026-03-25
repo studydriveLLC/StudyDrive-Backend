@@ -1,3 +1,4 @@
+//src/services/socialService.js
 const User = require('../models/User');
 const Post = require('../models/Post');
 const Feed = require('../models/Feed');
@@ -255,6 +256,24 @@ const getUserFeed = async (userId, page = 1, limit = 10) => {
   }).filter(p => p !== null);
 };
 
+const getUserSpecificPosts = async (userId, targetUserId, page = 1, limit = 10) => {
+  const skip = (page - 1) * limit;
+  
+  const posts = await Post.find({ author: targetUserId })
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
+    .populate('author', 'firstName lastName pseudo university avatar badgeType')
+    .populate('comments.user', 'firstName lastName pseudo avatar badgeType')
+    .lean();
+
+  return posts.map(post => {
+    post.isLikedByMe = post.likedBy ? post.likedBy.some(id => id.toString() === userId.toString()) : false;
+    delete post.likedBy;
+    return post;
+  });
+};
+
 module.exports = {
   followUser,
   unfollowUser,
@@ -269,5 +288,6 @@ module.exports = {
   updateComment,
   deleteComment,
   incrementShares,
-  getUserFeed
+  getUserFeed,
+  getUserSpecificPosts
 };

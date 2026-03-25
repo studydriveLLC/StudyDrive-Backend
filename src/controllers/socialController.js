@@ -102,6 +102,17 @@ const getFeed = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+// NOUVEAU: Controlleur pour recuperer les posts d'un utilisateur specifique
+const getUserPosts = async (req, res, next) => {
+  try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const posts = await socialService.getUserSpecificPosts(req.user._id, req.params.userId, page, limit);
+
+    res.status(200).json({ status: 'success', results: posts.length, data: { posts } });
+  } catch (error) { next(error); }
+};
+
 module.exports = {
   follow,
   unfollow,
@@ -116,5 +127,6 @@ module.exports = {
   updateComment,
   deleteComment,
   incrementShares,
-  getFeed
+  getFeed,
+  getUserPosts // EXPORT DE LA NOUVELLE METHODE
 };

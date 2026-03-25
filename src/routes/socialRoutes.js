@@ -15,6 +15,10 @@ router.get('/my-stats', socialController.getMyFollowStats);
 
 router.post('/posts', socialValidation.validate(socialValidation.createPostSchema), socialController.createPost);
 router.get('/feed', socialController.getFeed);
+
+// NOUVELLE ROUTE : Obtenir les posts specifiques d'un utilisateur
+router.get('/user-posts/:userId', socialController.getUserPosts);
+
 router.get('/posts/:postId', socialController.getPost);
 router.put('/posts/:postId', socialController.updatePost);
 router.delete('/posts/:postId', socialController.deletePost);
