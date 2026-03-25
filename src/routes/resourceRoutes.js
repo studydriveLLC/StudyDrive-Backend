@@ -1,3 +1,4 @@
+// src/routes/resourceRoutes.js
 const express = require('express');
 const resourceController = require('../controllers/resourceController');
 const authMiddleware = require('../middlewares/authMiddleware');
@@ -9,6 +10,8 @@ const router = express.Router();
 router.use(authMiddleware.protect);
 
 router.get('/', resourceController.getResources);
+// NOUVEAU : Route specifique pour le profil (doit etre avant /:id)
+router.get('/me', resourceController.getMyResources);
 router.get('/:id', resourceController.getResource);
 
 router.patch('/:id/view', resourceController.logView);
@@ -25,7 +28,6 @@ router.put('/:id', resourceController.updateResource);
 router.delete('/:id', resourceController.deleteResource);
 router.post('/:id/favorite', resourceController.toggleFavorite);
 
-// Modification critique : esquive des bloqueurs de reseau
 router.post('/:id/signal', resourceController.reportResource);
 
 module.exports = router;

@@ -1,3 +1,4 @@
+// src/controllers/resourceController.js
 const resourceService = require('../services/resourceService');
 const notificationService = require('../services/notificationService');
 const Resource = require('../models/Resource');
@@ -24,6 +25,15 @@ const getFormatFromMime = (mimetype, filename) => {
 exports.getResources = catchAsync(async (req, res) => {
   const data = await resourceService.getAllResources(req.query);
   res.status(200).json({ status: 'success', data });
+});
+
+// NOUVEAU : Récupération spécifique pour le profil
+exports.getMyResources = catchAsync(async (req, res, next) => {
+  const resources = await resourceService.getMyResources(req.user._id);
+  res.status(200).json({ 
+    status: 'success', 
+    data: { resources } 
+  });
 });
 
 exports.getResource = catchAsync(async (req, res, next) => {
@@ -111,24 +121,15 @@ exports.uploadResource = catchAsync(async (req, res, next) => {
 });
 
 exports.updateResource = catchAsync(async (req, res, next) => {
-  const resource = await Resource.findById(req.params.id);
+  // On remplace la logique brute par l'appel au service sécurisé
+  const resource = await resourceService.updateResource(req.params.id, req.user._id, req.user.role, req.body);
   
-  if (!resource) {
-    return next(new AppError('Document introuvable.', 404));
+  try {
+    // Émission temps réel aux autres utilisateurs
+    getIo().emit('resourceUpdated', resource);
+  } catch (error) {
+    console.error('Erreur Socket update:', error);
   }
-
-  if (resource.uploadedBy.toString() !== req.user._id.toString() && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-    return next(new AppError('Vous n etes pas autorise a modifier ce document.', 403));
-  }
-
-  const { title, description, category, level } = req.body;
-  
-  if (title) resource.title = title;
-  if (description) resource.description = description;
-  if (category) resource.category = category;
-  if (level) resource.level = level;
-
-  await resource.save();
 
   res.status(200).json({
     status: 'success',
@@ -137,17 +138,15 @@ exports.updateResource = catchAsync(async (req, res, next) => {
 });
 
 exports.deleteResource = catchAsync(async (req, res, next) => {
-  const resource = await Resource.findById(req.params.id);
+  // On remplace la logique brute par l'appel au service sécurisé
+  await resourceService.deleteResource(req.params.id, req.user._id, req.user.role);
   
-  if (!resource) {
-    return next(new AppError('Document introuvable.', 404));
+  try {
+    // Émission temps réel pour retirer la carte chez les autres utilisateurs
+    getIo().emit('resourceDeleted', { id: req.params.id });
+  } catch (error) {
+    console.error('Erreur Socket delete:', error);
   }
-
-  if (resource.uploadedBy.toString() !== req.user._id.toString() && req.user.role !== 'admin' && req.user.role !== 'superadmin') {
-    return next(new AppError('Vous n etes pas autorise a supprimer ce document.', 403));
-  }
-
-  await resource.deleteOne();
 
   res.status(204).json({
     status: 'success',
