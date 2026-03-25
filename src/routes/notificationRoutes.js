@@ -9,6 +9,8 @@ router.use(authMiddleware.protect);
 
 router.post('/register-token', notificationController.registerToken);
 router.post('/unregister-token', notificationController.unregisterToken);
+
+router.get('/unread-count', notificationController.getUnreadCount);
 router.get('/', notificationController.getMyNotifications);
 
 router.patch('/read-all', notificationController.markAllRead);

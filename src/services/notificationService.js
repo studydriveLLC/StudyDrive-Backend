@@ -61,6 +61,10 @@ const sendNotification = async ({ recipientId, senderId, type, referenceId, cont
   }
 };
 
+const getUnreadCount = async (userId) => {
+  return await Notification.countDocuments({ recipient: userId, isRead: false });
+};
+
 const getUserNotifications = async (userId, page = 1, limit = 20) => {
   const skip = (page - 1) * limit;
   return await Notification.find({ recipient: userId })
@@ -120,6 +124,7 @@ const unregisterDeviceToken = async (userId, fcmToken) => {
 
 module.exports = {
   sendNotification,
+  getUnreadCount,
   getUserNotifications,
   markAsRead,
   markAllAsRead,

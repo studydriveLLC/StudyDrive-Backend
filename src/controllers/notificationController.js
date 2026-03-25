@@ -27,6 +27,15 @@ const unregisterToken = async (req, res, next) => {
   }
 };
 
+const getUnreadCount = async (req, res, next) => {
+  try {
+    const count = await notificationService.getUnreadCount(req.user._id);
+    res.status(200).json({ status: 'success', data: { count } });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const getMyNotifications = async (req, res, next) => {
   try {
     const page = parseInt(req.query.page, 10) || 1;
@@ -97,6 +106,7 @@ const deleteAll = async (req, res, next) => {
 module.exports = {
   registerToken,
   unregisterToken,
+  getUnreadCount,
   getMyNotifications,
   markNotificationRead,
   markAllRead,
