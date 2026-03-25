@@ -1,4 +1,4 @@
-// src/controllers/userController.js
+//src/controllers/userController.js
 const userService = require('../services/userService');
 const env = require('../config/env');
 
@@ -21,6 +21,19 @@ const getProfile = async (req, res, next) => {
   }
 };
 
+// NOUVEAU : Contrôleur pour le profil public
+const getPublicProfile = async (req, res, next) => {
+  try {
+    const profile = await userService.getPublicUserProfile(req.params.id);
+    res.status(200).json({
+      status: 'success',
+      data: { profile }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const updateProfile = async (req, res, next) => {
   try {
     const user = await userService.updateUserProfile(req.user._id, req.body);
@@ -33,7 +46,6 @@ const updateProfile = async (req, res, next) => {
   }
 };
 
-// NOUVEAU : Upload Avatar
 const uploadAvatar = async (req, res, next) => {
   try {
     const user = await userService.uploadUserAvatar(req.user._id, req.file);
@@ -89,8 +101,9 @@ const requestCertification = async (req, res, next) => {
 
 module.exports = {
   getProfile,
+  getPublicProfile,
   updateProfile,
-  uploadAvatar, // Exporter la nouvelle fonction
+  uploadAvatar,
   getStats,
   deleteMe,
   requestCertification

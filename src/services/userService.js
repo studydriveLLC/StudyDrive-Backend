@@ -1,4 +1,4 @@
-// src/services/userService.js
+//src/services/userService.js
 const User = require('../models/User');
 const Post = require('../models/Post');
 const Document = require('../models/Document');
@@ -15,12 +15,34 @@ const getUserProfile = async (userId) => {
   return user;
 };
 
+// NOUVEAU : Fonction sécurisée pour le profil public
+const getPublicUserProfile = async (targetUserId) => {
+  const user = await User.findById(targetUserId)
+    .select('-password -fcmTokens -email -phone')
+    .lean();
+    
+  if (!user) {
+    throw new AppError('Utilisateur introuvable.', 404);
+  }
+
+  const [postsCount, documentsCount] = await Promise.all([
+    Post.countDocuments({ author: targetUserId }),
+    Document.countDocuments({ $or: [{ author: targetUserId }, { uploadedBy: targetUserId }] })
+  ]);
+
+  return {
+    ...user,
+    publicStats: {
+      posts: postsCount,
+      documents: documentsCount
+    }
+  };
+};
+
 const updateUserProfile = async (userId, data) => {
-  // CORRECTION : Ajout de 'bio' pour permettre la modification via le frontend
   const allowedFields = ['avatar', 'university', 'phone', 'firstName', 'lastName', 'pseudo', 'bio'];
   const updateData = {};
 
-  // Sécurité : Vérification de l'unicité du pseudo si on tente de le modifier
   if (data.pseudo) {
     const existingUser = await User.findOne({ pseudo: data.pseudo, _id: { $ne: userId } }).lean();
     if (existingUser) {
@@ -28,7 +50,6 @@ const updateUserProfile = async (userId, data) => {
     }
   }
 
-  // Sécurité : Vérification de l'unicité du téléphone par anticipation
   if (data.phone) {
     const existingPhone = await User.findOne({ phone: data.phone, _id: { $ne: userId } }).lean();
     if (existingPhone) {
@@ -54,7 +75,6 @@ const updateUserProfile = async (userId, data) => {
   return updatedUser;
 };
 
-// NOUVEAU : Fonction d'upload d'avatar
 const uploadUserAvatar = async (userId, file) => {
   if (!file) {
     throw new AppError('Aucun fichier image fourni.', 400);
@@ -72,7 +92,6 @@ const uploadUserAvatar = async (userId, file) => {
       { new: true }
     ).select('-password');
 
-    // Nettoyage du fichier local
     if (fs.existsSync(file.path)) {
       fs.unlinkSync(file.path);
     }
@@ -151,8 +170,9 @@ const submitCertificationRequest = async (userId) => {
 
 module.exports = {
   getUserProfile,
+  getPublicUserProfile,
   updateUserProfile,
-  uploadUserAvatar, // Exporter la nouvelle fonction
+  uploadUserAvatar,
   getUserStats,
   deleteAccount,
   submitCertificationRequest
