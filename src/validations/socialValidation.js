@@ -3,10 +3,13 @@ const { z } = require('zod');
 const createPostSchema = z.object({
   body: z.object({
     text: z.string().max(3000, "Le texte ne peut pas depasser 3000 caracteres").optional(),
+    textBackground: z.string().optional(),
     mediaUrls: z.array(z.string().url("URL de media invalide")).optional(),
     mediaType: z.enum(['image', 'video', 'none']).default('none'),
-  }).refine(data => data.text || (data.mediaUrls && data.mediaUrls.length > 0), {
-    message: "Une publication doit contenir au moins du texte ou un media."
+    isRepost: z.boolean().optional(),
+    originalPost: z.string().regex(/^[0-9a-fA-F]{24}$/, "ID de post invalide").optional()
+  }).refine(data => data.text || (data.mediaUrls && data.mediaUrls.length > 0) || data.isRepost, {
+    message: "Une publication doit contenir au moins du texte, un media, ou etre un repost."
   }).strict()
 });
 
@@ -16,7 +19,6 @@ const targetUserSchema = z.object({
   })
 });
 
-// Le middleware de validation manquant
 const validate = (schema) => (req, res, next) => {
   try {
     schema.parse({
@@ -42,5 +44,5 @@ const validate = (schema) => (req, res, next) => {
 module.exports = {
   createPostSchema,
   targetUserSchema,
-  validate // Exportation ajoutee
+  validate
 };

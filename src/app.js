@@ -20,15 +20,14 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const userRoutes = require('./routes/userRoutes');
 const resourceRoutes = require('./routes/resourceRoutes');
+const reportRoutes = require('./routes/reportRoutes');
 
 const app = express();
 
-// Configuration pour Render (Reverse Proxy)
 app.set('trust proxy', 1);
 
 app.use(helmet());
 
-// FIX CORS : Ajout de Accept, Origin et X-Requested-With pour debloquer Expo
 app.use(cors({
   origin: env.NODE_ENV === 'production' ? env.CLIENT_URL : '*',
   credentials: true,
@@ -50,7 +49,6 @@ app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(cookieParser());
 app.use(compression());
 
-// Patch de compatibilite Express 5 pour mongoSanitize
 app.use((req, res, next) => {
   Object.defineProperty(req, 'query', {
     value: { ...req.query },
@@ -97,6 +95,7 @@ app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/resources', resourceRoutes);
+app.use('/api/v1/reports', reportRoutes);
 
 app.use((req, res, next) => {
   next(new AppError(`Impossible de trouver ${req.originalUrl} sur ce serveur!`, 404));

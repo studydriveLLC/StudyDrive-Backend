@@ -1,3 +1,4 @@
+// src/models/User.js
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
@@ -32,7 +33,9 @@ const userSchema = new mongoose.Schema({
 
   followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Resource' }]
+  favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Resource' }],
+  
+  hiddenUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
 
 }, { 
   timestamps: true 

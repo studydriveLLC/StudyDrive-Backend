@@ -1,29 +1,30 @@
+// src/models/Report.js
 const mongoose = require('mongoose');
 
 const reportSchema = new mongoose.Schema({
-  resource: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Resource',
-    required: true,
-    index: true
-  },
-  reportedBy: {
+  reporter: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
+  reportedPost: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Post',
+    required: true
+  },
   reason: {
     type: String,
-    required: [true, 'Le motif du signalement est obligatoire'],
+    required: true,
     trim: true,
-    minlength: [5, 'Le motif doit etre plus detaille'],
-    maxlength: [500, 'Le motif est trop long']
+    maxlength: 500
   },
+  screenshots: [{
+    type: String
+  }],
   status: {
     type: String,
-    enum: ['pending', 'reviewed', 'resolved', 'rejected'],
-    default: 'pending',
-    index: true
+    enum: ['pending', 'reviewed', 'resolved'],
+    default: 'pending'
   }
 }, {
   timestamps: true

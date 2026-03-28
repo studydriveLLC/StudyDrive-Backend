@@ -25,7 +25,7 @@ const getUsersList = async (req, res, next) => {
 
 const toggleUserStatus = async (req, res, next) => {
   try {
-    const { action } = req.body; // 'ban' ou 'unban'
+    const { action } = req.body; 
     const user = await adminService.moderateUser(req.params.userId, action);
     res.status(200).json({ status: 'success', data: { user } });
   } catch (error) { next(error); }
@@ -53,6 +53,23 @@ const forceDeleteResource = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+// --- Gestion des Signalements (NOUVEAU) ---
+const listReports = async (req, res, next) => {
+  try {
+    const status = req.query.status || 'pending';
+    const reports = await adminService.getAllReports(status);
+    res.status(200).json({ status: 'success', results: reports.length, data: { reports } });
+  } catch (error) { next(error); }
+};
+
+const processReport = async (req, res, next) => {
+  try {
+    const { action } = req.body; // 'dismiss' ou 'delete_post'
+    const report = await adminService.resolveReport(req.params.reportId, action);
+    res.status(200).json({ status: 'success', message: 'Signalement traite.', data: { report } });
+  } catch (error) { next(error); }
+};
+
 // --- Certifications ---
 const listPendingCertifications = async (req, res, next) => {
   try {
@@ -77,6 +94,8 @@ module.exports = {
   forceDeletePost,
   forceDeleteComment,
   forceDeleteResource,
+  listReports,           // NOUVEAU
+  processReport,         // NOUVEAU
   listPendingCertifications,
   resolveCertification
 };

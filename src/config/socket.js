@@ -25,7 +25,7 @@ const initSocket = (server) => {
   const subClient = redisClient.duplicate();
   io.adapter(createAdapter(pubClient, subClient));
 
-  // Ecoute native des evenements de la file d'attente (Worker -> Main Process)
+  // Événements pour les ressources documentaires
   const uploadEvents = new QueueEvents('resource-upload', {
     connection: { url: process.env.REDIS_URI }
   });
@@ -39,6 +39,25 @@ const initSocket = (server) => {
       }
     } catch (error) {
       logger.error('Erreur lors de l emission Socket depuis QueueEvents:', error);
+    }
+  });
+
+  // NOUVEAU : Événements pour le Feed (Fanout terminé = nouveau post disponible)
+  const feedEvents = new QueueEvents('feed', {
+    connection: { url: process.env.REDIS_URI }
+  });
+
+  feedEvents.on('completed', ({ jobId, returnvalue }) => {
+    try {
+      // returnvalue devrait contenir la liste des users qui ont recu le post
+      // et l'ID du post. On pourrait émettre uniquement à ces utilisateurs,
+      // mais pour l'instant, on avertit tout le monde qu'un nouveau post est là
+      // pour qu'ils puissent afficher un bouton "Nouveaux posts disponibles"
+      if (returnvalue && returnvalue.postId) {
+        io.emit('new_post_available', { postId: returnvalue.postId, authorId: returnvalue.authorId });
+      }
+    } catch (error) {
+      logger.error('Erreur lors de l emission Socket pour le Feed:', error);
     }
   });
 
@@ -67,12 +86,20 @@ const initSocket = (server) => {
 
     socket.join(`user_${userId}`);
 
+    // Messagerie
     socket.on('join_conversation', (conversationId) => {
       socket.join(conversationId);
     });
 
     socket.on('typing', ({ conversationId, isTyping }) => {
       socket.to(conversationId).emit('user_typing', { userId, isTyping });
+    });
+
+    // Temps réel Social
+    socket.on('post_action', ({ postId, action, data }) => {
+      // action = 'like', 'comment_added', 'comment_deleted'
+      // On re-diffuse cette action à TOUT LE MONDE sauf à l'expéditeur
+      socket.broadcast.emit('post_updated', { postId, action, data });
     });
 
     socket.on('disconnect', (reason) => {

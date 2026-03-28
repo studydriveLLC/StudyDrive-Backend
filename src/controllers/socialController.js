@@ -1,4 +1,3 @@
-//src/controllers/socialController.js
 const socialService = require('../services/socialService');
 
 const follow = async (req, res, next) => {
@@ -32,6 +31,13 @@ const getMyFollowStats = async (req, res, next) => {
 const createPost = async (req, res, next) => {
   try {
     const post = await socialService.createPost(req.user._id, req.body);
+    res.status(201).json({ status: 'success', data: { post } });
+  } catch (error) { next(error); }
+};
+
+const createRepost = async (req, res, next) => {
+  try {
+    const post = await socialService.createRepost(req.user._id, req.params.postId);
     res.status(201).json({ status: 'success', data: { post } });
   } catch (error) { next(error); }
 };
@@ -92,6 +98,13 @@ const incrementShares = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
+const hideUser = async (req, res, next) => {
+  try {
+    await socialService.hideUser(req.user._id, req.params.targetId);
+    res.status(200).json({ status: 'success', message: 'Utilisateur masque avec succes.' });
+  } catch (error) { next(error); }
+};
+
 const getFeed = async (req, res, next) => {
   try {
     const page = parseInt(req.query.page, 10) || 1;
@@ -102,7 +115,6 @@ const getFeed = async (req, res, next) => {
   } catch (error) { next(error); }
 };
 
-// NOUVEAU: Controlleur pour recuperer les posts d'un utilisateur specifique
 const getUserPosts = async (req, res, next) => {
   try {
     const page = parseInt(req.query.page, 10) || 1;
@@ -119,6 +131,7 @@ module.exports = {
   getFollowStatus,
   getMyFollowStats,
   createPost,
+  createRepost,
   getPost,
   updatePost,
   deletePost,
@@ -127,6 +140,7 @@ module.exports = {
   updateComment,
   deleteComment,
   incrementShares,
+  hideUser,
   getFeed,
-  getUserPosts // EXPORT DE LA NOUVELLE METHODE
+  getUserPosts
 };

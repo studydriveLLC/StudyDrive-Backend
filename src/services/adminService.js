@@ -2,6 +2,7 @@ const User = require('../models/User');
 const Post = require('../models/Post');
 const Resource = require('../models/Resource');
 const CertificationRequest = require('../models/CertificationRequest');
+const Report = require('../models/Report'); // NOUVEAU MODELE
 const AppError = require('../utils/AppError');
 
 // --- Gestion des Administrateurs (Exclusif Super Admin) ---
@@ -85,6 +86,38 @@ const deleteAnyResource = async (resourceId) => {
   return true;
 };
 
+// --- Gestion des Signalements (NOUVEAU) ---
+
+const getAllReports = async (statusFilter = 'pending') => {
+  const query = statusFilter !== 'all' ? { status: statusFilter } : {};
+  return await Report.find(query)
+    .populate('reporter', 'firstName lastName pseudo email')
+    .populate({
+      path: 'reportedPost',
+      populate: { path: 'author', select: 'firstName lastName pseudo' }
+    })
+    .sort({ createdAt: -1 })
+    .lean();
+};
+
+const resolveReport = async (reportId, action) => {
+  const report = await Report.findById(reportId);
+  if (!report) throw new AppError('Signalement introuvable.', 404);
+
+  // action: 'dismiss' (ignorer) ou 'delete_post' (supprimer le post signalé)
+  if (action === 'delete_post') {
+    await Post.findByIdAndDelete(report.reportedPost);
+    report.status = 'resolved';
+  } else if (action === 'dismiss') {
+    report.status = 'reviewed';
+  } else {
+    throw new AppError('Action invalide.', 400);
+  }
+
+  await report.save();
+  return report;
+};
+
 // --- Gestion des Certifications ---
 
 const getPendingCertifications = async () => {
@@ -130,6 +163,8 @@ module.exports = {
   deleteAnyPost,
   deleteAnyComment,
   deleteAnyResource,
+  getAllReports,       // NOUVEAU
+  resolveReport,       // NOUVEAU
   getPendingCertifications,
   processCertification
 };

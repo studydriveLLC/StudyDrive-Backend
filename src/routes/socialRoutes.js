@@ -1,4 +1,3 @@
-//src/routes/socialRoutes.js
 const express = require('express');
 const socialController = require('../controllers/socialController');
 const socialValidation = require('../validations/socialValidation');
@@ -13,10 +12,12 @@ router.post('/unfollow/:targetId', socialValidation.validate(socialValidation.ta
 router.get('/status/:targetId', socialValidation.validate(socialValidation.targetUserSchema), socialController.getFollowStatus);
 router.get('/my-stats', socialController.getMyFollowStats);
 
+router.post('/hide/:targetId', socialValidation.validate(socialValidation.targetUserSchema), socialController.hideUser);
+
 router.post('/posts', socialValidation.validate(socialValidation.createPostSchema), socialController.createPost);
+router.post('/posts/:postId/repost', socialController.createRepost);
 router.get('/feed', socialController.getFeed);
 
-// NOUVELLE ROUTE : Obtenir les posts specifiques d'un utilisateur
 router.get('/user-posts/:userId', socialController.getUserPosts);
 
 router.get('/posts/:postId', socialController.getPost);

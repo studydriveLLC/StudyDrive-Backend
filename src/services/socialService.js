@@ -1,4 +1,3 @@
-//src/services/socialService.js
 const User = require('../models/User');
 const Post = require('../models/Post');
 const Feed = require('../models/Feed');
@@ -88,6 +87,7 @@ const createPost = async (authorId, postData) => {
     author: authorId,
     content: {
       text: postData.text,
+      textBackground: postData.textBackground || 'none',
       mediaUrls: postData.mediaUrls || [],
       mediaType: postData.mediaType
     }
@@ -112,10 +112,49 @@ const createPost = async (authorId, postData) => {
   return postObj;
 };
 
+const createRepost = async (userId, postId) => {
+  const original = await Post.findById(postId);
+  if (!original) throw new AppError('Publication originale introuvable.', 404);
+
+  const post = await Post.create({
+    author: userId,
+    content: { text: '', mediaUrls: [], mediaType: 'none', textBackground: 'none' },
+    isRepost: true,
+    originalPost: postId
+  });
+
+  original.stats.shares += 1;
+  await original.save();
+
+  await post.populate('author', 'firstName lastName pseudo university avatar badgeType');
+  await post.populate({
+    path: 'originalPost',
+    populate: { path: 'author', select: 'firstName lastName pseudo university avatar badgeType' }
+  });
+
+  await feedQueue.add('fanout', { postId: post._id, authorId: userId }, {
+    attempts: 3, backoff: { type: 'exponential', delay: 1000 }, removeOnComplete: true
+  });
+
+  await Feed.findOneAndUpdate(
+    { user: userId },
+    { $push: { posts: { $each: [{ post: post._id, addedAt: new Date() }], $position: 0, $slice: 500 } } },
+    { upsert: true }
+  );
+
+  const postObj = post.toObject();
+  postObj.isLikedByMe = false;
+  return postObj;
+};
+
 const getPost = async (postId, userId) => {
   const post = await Post.findById(postId)
     .populate('author', 'firstName lastName pseudo university avatar badgeType')
     .populate('comments.user', 'firstName lastName pseudo avatar badgeType')
+    .populate({
+      path: 'originalPost',
+      populate: { path: 'author', select: 'firstName lastName pseudo university avatar badgeType' }
+    })
     .lean();
 
   if (!post) throw new AppError('Publication introuvable.', 404);
@@ -134,6 +173,7 @@ const updatePost = async (userId, postId, updateData) => {
   if (updateData.text !== undefined) post.content.text = updateData.text;
   if (updateData.mediaUrls !== undefined) post.content.mediaUrls = updateData.mediaUrls;
   if (updateData.mediaType !== undefined) post.content.mediaType = updateData.mediaType;
+  if (updateData.textBackground !== undefined) post.content.textBackground = updateData.textBackground;
 
   await post.save();
   return post;
@@ -231,8 +271,33 @@ const incrementShares = async (postId) => {
   return post.stats.shares;
 };
 
+const hideUser = async (currentUserId, targetUserId) => {
+  if (currentUserId.toString() === targetUserId.toString()) {
+    throw new AppError('Vous ne pouvez pas vous masquer vous-meme.', 400);
+  }
+
+  await User.findByIdAndUpdate(currentUserId, {
+    $addToSet: { hiddenUsers: targetUserId }
+  });
+
+  const userPosts = await Post.find({ author: targetUserId }).select('_id');
+  const postIds = userPosts.map(p => p._id);
+  
+  if (postIds.length > 0) {
+    await Feed.findOneAndUpdate(
+      { user: currentUserId },
+      { $pull: { posts: { post: { $in: postIds } } } }
+    );
+  }
+
+  return true;
+};
+
 const getUserFeed = async (userId, page = 1, limit = 10) => {
   const skip = (page - 1) * limit;
+
+  const currentUser = await User.findById(userId).select('hiddenUsers').lean();
+  const hiddenUsersStr = currentUser.hiddenUsers ? currentUser.hiddenUsers.map(id => id.toString()) : [];
 
   const feed = await Feed.findOne(
     { user: userId },
@@ -241,7 +306,8 @@ const getUserFeed = async (userId, page = 1, limit = 10) => {
     path: 'posts.post',
     populate: [
       { path: 'author', select: 'firstName lastName pseudo university avatar badgeType' },
-      { path: 'comments.user', select: 'firstName lastName pseudo avatar badgeType' }
+      { path: 'comments.user', select: 'firstName lastName pseudo avatar badgeType' },
+      { path: 'originalPost', populate: { path: 'author', select: 'firstName lastName pseudo university avatar badgeType' } }
     ]
   }).lean();
 
@@ -250,6 +316,9 @@ const getUserFeed = async (userId, page = 1, limit = 10) => {
   return feed.posts.map(p => {
     if (!p.post) return null;
     const post = p.post;
+    
+    if (post.author && hiddenUsersStr.includes(post.author._id.toString())) return null;
+
     post.isLikedByMe = post.likedBy ? post.likedBy.some(id => id.toString() === userId.toString()) : false;
     delete post.likedBy; 
     return post;
@@ -265,6 +334,10 @@ const getUserSpecificPosts = async (userId, targetUserId, page = 1, limit = 10) 
     .limit(limit)
     .populate('author', 'firstName lastName pseudo university avatar badgeType')
     .populate('comments.user', 'firstName lastName pseudo avatar badgeType')
+    .populate({
+      path: 'originalPost',
+      populate: { path: 'author', select: 'firstName lastName pseudo university avatar badgeType' }
+    })
     .lean();
 
   return posts.map(post => {
@@ -280,6 +353,7 @@ module.exports = {
   getFollowStatus,
   getMyFollowStats,
   createPost,
+  createRepost,
   getPost,
   updatePost,
   deletePost,
@@ -288,6 +362,7 @@ module.exports = {
   updateComment,
   deleteComment,
   incrementShares,
+  hideUser,
   getUserFeed,
   getUserSpecificPosts
 };
