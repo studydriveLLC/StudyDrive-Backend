@@ -17,8 +17,11 @@ const invalidateFeedCache = async () => {
 };
 
 exports.getAllResources = async (query) => {
-  const { search, category, level, sort, page = 1, limit = 10 } = query;
-  const cacheKey = `resources:feed:${search || 'all'}:${category || 'all'}:${level || 'all'}:${sort || 'new'}:${page}:${limit}`;
+  // CORRECTION : Ajout de uploadedBy dans l'extraction
+  const { search, category, level, sort, page = 1, limit = 10, uploadedBy } = query;
+  
+  // CORRECTION : Ajout de uploadedBy dans la clé de cache pour éviter les fuites de données entre profils
+  const cacheKey = `resources:feed:${search || 'all'}:${category || 'all'}:${level || 'all'}:${sort || 'new'}:${uploadedBy || 'all'}:${page}:${limit}`;
 
   try {
     const cachedData = await redisClient.get(cacheKey);
@@ -26,6 +29,11 @@ exports.getAllResources = async (query) => {
   } catch (err) {}
 
   const filter = { status: 'ready' };
+  
+  // CORRECTION : Application stricte du filtre utilisateur si fourni
+  if (uploadedBy) {
+    filter.uploadedBy = uploadedBy;
+  }
   
   if (search) {
     filter.$or = [
